@@ -12,6 +12,7 @@ import {
   calculateHabitStreak,
 } from '@/lib/services/habits';
 import { Modal } from '@/components/ui/modal';
+import { useRealtimeSync } from '@/lib/hooks/use-realtime-sync';
 import type { Habit, HabitCategory, HabitEntry, HabitSchedule } from '@/types';
 import {
   Target,
@@ -104,6 +105,14 @@ export default function HabitsPage() {
   useEffect(() => {
     loadHabitsData();
   }, [loadHabitsData]);
+
+  // Realtime Cross-Device Synchronization
+  useRealtimeSync({
+    userId: user?.id,
+    tables: ['habits', 'habit_entries'],
+    onSync: loadHabitsData,
+    enabled: !!user,
+  });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

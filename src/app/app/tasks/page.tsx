@@ -12,6 +12,7 @@ import {
 import { getProjects } from '@/lib/services/projects';
 import { Modal } from '@/components/ui/modal';
 import { PriorityBadge } from '@/components/ui/badge';
+import { useRealtimeSync } from '@/lib/hooks/use-realtime-sync';
 import type { Task, TaskPriority, TaskStatus, Project } from '@/types';
 import {
   CheckSquare,
@@ -71,6 +72,14 @@ export default function TasksPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Realtime Cross-Device Synchronization
+  useRealtimeSync({
+    userId: user?.id,
+    tables: ['tasks', 'projects'],
+    onSync: loadData,
+    enabled: !!user,
+  });
 
   const handleToggle = async (task: Task) => {
     const nextStatus: TaskStatus = task.status === 'completed' ? 'todo' : 'completed';

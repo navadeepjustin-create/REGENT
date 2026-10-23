@@ -10,6 +10,7 @@ import { getDailyReview, saveDailyReview } from '@/lib/services/reviews';
 import { Modal } from '@/components/ui/modal';
 import { StatCard } from '@/components/ui/stat-card';
 import { PriorityBadge } from '@/components/ui/badge';
+import { useRealtimeSync } from '@/lib/hooks/use-realtime-sync';
 import type { Task, Habit, HabitEntry, DailyReview, TaskPriority } from '@/types';
 import {
   CheckSquare,
@@ -91,6 +92,14 @@ export default function TodayPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Realtime Cross-Device Synchronization
+  useRealtimeSync({
+    userId: user?.id,
+    tables: ['tasks', 'habits', 'habit_entries', 'focus_sessions', 'daily_reviews'],
+    onSync: loadData,
+    enabled: !!user,
+  });
 
   // Greeting based on time of day
   const getGreeting = () => {

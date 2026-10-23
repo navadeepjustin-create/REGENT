@@ -19,6 +19,8 @@ import {
   TrendingUp,
 } from 'lucide-react';
 
+import { KineticSphereField } from '@/components/ui/kinetic-sphere-field';
+
 const features = [
   {
     icon: CalendarDays,
@@ -100,21 +102,24 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-24 px-6">
-        <div className="max-w-5xl mx-auto text-center">
+      <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+        {/* Three.js Cinematic Background Field */}
+        <KineticSphereField />
+
+        <div className="relative z-10 max-w-5xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border-default bg-surface-1 mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border-default bg-surface-1/80 backdrop-blur-md mb-8">
               <Sparkles className="w-3.5 h-3.5 text-regent-gold" />
-              <span className="text-xs tracking-wider uppercase text-text-secondary">
+              <span className="text-[11px] font-mono tracking-widest uppercase text-regent-gold font-medium">
                 Personal Command Center
               </span>
             </div>
 
-            <h1 className="text-display mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight mb-6 leading-[1.1]">
               A Higher Standard<br />
               <span className="text-regent-gold">for Your Time.</span>
             </h1>
