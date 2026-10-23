@@ -1,0 +1,576 @@
+-- ============================================
+-- REGENT — Database Schema Migration
+-- Version: 001 — Core Tables
+-- ============================================
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ── Profiles ──
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  display_name TEXT,
+  workspace_type TEXT NOT NULL DEFAULT 'general' CHECK (workspace_type IN ('student', 'professional', 'developer', 'fitness', 'general')),
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  avatar_url TEXT,
+  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── User Preferences ──
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+  enabled_modules TEXT[] NOT NULL DEFAULT ARRAY['tasks', 'habits', 'calendar', 'focus', 'insights'],
+  theme TEXT NOT NULL DEFAULT 'dark' CHECK (theme IN ('dark', 'light', 'system')),
+  daily_success_rule JSONB NOT NULL DEFAULT '{"type": "habits_count", "min_habits": 3}'::jsonb,
+  starter_habits TEXT[] NOT NULL DEFAULT '{}',
+  primary_goals TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Tasks ──
+CREATE TABLE IF NOT EXISTS tasks (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 500),
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'completed', 'cancelled')),
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  start_date DATE,
+  due_date DATE,
+  project_id UUID,
+  subject_id UUID,
+  category TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  is_priority_task BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(user_id, due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+
+-- ── Habits ──
+CREATE TABLE IF NOT EXISTS habits (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(name) >= 1 AND char_length(name) <= 200),
+  description TEXT,
+  category TEXT NOT NULL DEFAULT 'other' CHECK (category IN ('health', 'fitness', 'learning', 'productivity', 'mindfulness', 'social', 'creative', 'finance', 'other')),
+  icon TEXT NOT NULL DEFAULT 'circle-check',
+  schedule_type TEXT NOT NULL DEFAULT 'daily' CHECK (schedule_type IN ('daily', 'weekdays', 'custom')),
+  schedule_days INTEGER[] NOT NULL DEFAULT ARRAY[0,1,2,3,4,5,6],
+  target_value NUMERIC NOT NULL DEFAULT 1 CHECK (target_value > 0),
+  unit TEXT NOT NULL DEFAULT 'times',
+  start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  rest_days INTEGER[] NOT NULL DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+  contributes_to_daily_success BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id);
+CREATE INDEX IF NOT EXISTS idx_habits_active ON habits(user_id, is_active);
+
+-- ── Habit Entries ──
+CREATE TABLE IF NOT EXISTS habit_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  habit_id UUID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  value NUMERIC NOT NULL DEFAULT 0 CHECK (value >= 0),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(habit_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_habit_entries_user_date ON habit_entries(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_habit_entries_habit_date ON habit_entries(habit_id, date);
+
+-- ── Focus Sessions ──
+CREATE TABLE IF NOT EXISTS focus_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'cancelled')),
+  work_duration INTEGER NOT NULL DEFAULT 25 CHECK (work_duration > 0),
+  break_duration INTEGER NOT NULL DEFAULT 5 CHECK (break_duration >= 0),
+  start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_time TIMESTAMPTZ,
+  actual_duration INTEGER, -- seconds
+  paused_duration INTEGER NOT NULL DEFAULT 0, -- seconds
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_focus_sessions_user ON focus_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_focus_sessions_date ON focus_sessions(user_id, start_time);
+
+-- ── Projects ──
+CREATE TABLE IF NOT EXISTS projects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(name) >= 1 AND char_length(name) <= 300),
+  description TEXT,
+  category TEXT,
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  status TEXT NOT NULL DEFAULT 'planning' CHECK (status IN ('planning', 'active', 'on_hold', 'completed', 'cancelled')),
+  target_date DATE,
+  progress NUMERIC NOT NULL DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
+
+-- ── Project Milestones ──
+CREATE TABLE IF NOT EXISTS project_milestones (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 300),
+  description TEXT,
+  target_date DATE,
+  is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_milestones_project ON project_milestones(project_id);
+
+-- Add FK from tasks to projects (now that projects table exists)
+ALTER TABLE tasks ADD CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL;
+
+-- ── Subjects (Academic) ──
+CREATE TABLE IF NOT EXISTS subjects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(name) >= 1 AND char_length(name) <= 200),
+  code TEXT,
+  semester TEXT,
+  institution TEXT,
+  color TEXT NOT NULL DEFAULT '#C2A878',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_subjects_user ON subjects(user_id);
+
+-- Add FK from tasks to subjects (now that subjects table exists)
+ALTER TABLE tasks ADD CONSTRAINT fk_tasks_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL;
+
+-- ── Syllabus Units ──
+CREATE TABLE IF NOT EXISTS syllabus_units (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 300),
+  description TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_syllabus_units_subject ON syllabus_units(subject_id);
+
+-- ── Assignments ──
+CREATE TABLE IF NOT EXISTS assignments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 300),
+  description TEXT,
+  due_date DATE,
+  status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'completed', 'cancelled')),
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  is_backlog BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_assignments_subject ON assignments(subject_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_user ON assignments(user_id);
+
+-- ── Study Sessions ──
+CREATE TABLE IF NOT EXISTS study_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+  unit_id UUID REFERENCES syllabus_units(id) ON DELETE SET NULL,
+  topic TEXT,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ,
+  duration INTEGER, -- minutes
+  notes TEXT,
+  task_id UUID REFERENCES tasks(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_study_sessions_user ON study_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_study_sessions_subject ON study_sessions(subject_id);
+CREATE INDEX IF NOT EXISTS idx_study_sessions_date ON study_sessions(user_id, start_time);
+
+-- ── Daily Reviews ──
+CREATE TABLE IF NOT EXISTS daily_reviews (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  reflection TEXT,
+  mood INTEGER CHECK (mood >= 1 AND mood <= 5),
+  energy INTEGER CHECK (energy >= 1 AND energy <= 5),
+  accomplishments TEXT[] NOT NULL DEFAULT '{}',
+  tomorrow_priorities TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_reviews_user_date ON daily_reviews(user_id, date);
+
+-- ── Updated_at trigger function ──
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply triggers
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_habits_updated_at BEFORE UPDATE ON habits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_habit_entries_updated_at BEFORE UPDATE ON habit_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_subjects_updated_at BEFORE UPDATE ON subjects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_daily_reviews_updated_at BEFORE UPDATE ON daily_reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ── Auto-create profile on signup ──
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, email, display_name)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)));
+  
+  INSERT INTO user_preferences (user_id)
+  VALUES (NEW.id);
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+-- ============================================
+-- REGENT — Row Level Security Policies
+-- Version: 002 — RLS
+-- ============================================
+
+-- Enable RLS on all tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE habits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE habit_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE focus_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE project_milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE syllabus_units ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_reviews ENABLE ROW LEVEL SECURITY;
+
+-- ── Profiles ──
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+CREATE POLICY "Users can view own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+CREATE POLICY "Users can insert own profile"
+  ON profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
+-- ── User Preferences ──
+DROP POLICY IF EXISTS "Users can view own preferences" ON user_preferences;
+CREATE POLICY "Users can view own preferences"
+  ON user_preferences FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own preferences" ON user_preferences;
+CREATE POLICY "Users can update own preferences"
+  ON user_preferences FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own preferences" ON user_preferences;
+CREATE POLICY "Users can insert own preferences"
+  ON user_preferences FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- ── Tasks ──
+DROP POLICY IF EXISTS "Users can view own tasks" ON tasks;
+CREATE POLICY "Users can view own tasks"
+  ON tasks FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own tasks" ON tasks;
+CREATE POLICY "Users can create own tasks"
+  ON tasks FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own tasks" ON tasks;
+CREATE POLICY "Users can update own tasks"
+  ON tasks FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own tasks" ON tasks;
+CREATE POLICY "Users can delete own tasks"
+  ON tasks FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Habits ──
+DROP POLICY IF EXISTS "Users can view own habits" ON habits;
+CREATE POLICY "Users can view own habits"
+  ON habits FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own habits" ON habits;
+CREATE POLICY "Users can create own habits"
+  ON habits FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own habits" ON habits;
+CREATE POLICY "Users can update own habits"
+  ON habits FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own habits" ON habits;
+CREATE POLICY "Users can delete own habits"
+  ON habits FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Habit Entries ──
+DROP POLICY IF EXISTS "Users can view own habit entries" ON habit_entries;
+CREATE POLICY "Users can view own habit entries"
+  ON habit_entries FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own habit entries" ON habit_entries;
+CREATE POLICY "Users can create own habit entries"
+  ON habit_entries FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own habit entries" ON habit_entries;
+CREATE POLICY "Users can update own habit entries"
+  ON habit_entries FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own habit entries" ON habit_entries;
+CREATE POLICY "Users can delete own habit entries"
+  ON habit_entries FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Focus Sessions ──
+DROP POLICY IF EXISTS "Users can view own focus sessions" ON focus_sessions;
+CREATE POLICY "Users can view own focus sessions"
+  ON focus_sessions FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own focus sessions" ON focus_sessions;
+CREATE POLICY "Users can create own focus sessions"
+  ON focus_sessions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own focus sessions" ON focus_sessions;
+CREATE POLICY "Users can update own focus sessions"
+  ON focus_sessions FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own focus sessions" ON focus_sessions;
+CREATE POLICY "Users can delete own focus sessions"
+  ON focus_sessions FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Projects ──
+DROP POLICY IF EXISTS "Users can view own projects" ON projects;
+CREATE POLICY "Users can view own projects"
+  ON projects FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own projects" ON projects;
+CREATE POLICY "Users can create own projects"
+  ON projects FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own projects" ON projects;
+CREATE POLICY "Users can update own projects"
+  ON projects FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own projects" ON projects;
+CREATE POLICY "Users can delete own projects"
+  ON projects FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Project Milestones ──
+DROP POLICY IF EXISTS "Users can view own milestones" ON project_milestones;
+CREATE POLICY "Users can view own milestones"
+  ON project_milestones FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own milestones" ON project_milestones;
+CREATE POLICY "Users can create own milestones"
+  ON project_milestones FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own milestones" ON project_milestones;
+CREATE POLICY "Users can update own milestones"
+  ON project_milestones FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own milestones" ON project_milestones;
+CREATE POLICY "Users can delete own milestones"
+  ON project_milestones FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Subjects ──
+DROP POLICY IF EXISTS "Users can view own subjects" ON subjects;
+CREATE POLICY "Users can view own subjects"
+  ON subjects FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own subjects" ON subjects;
+CREATE POLICY "Users can create own subjects"
+  ON subjects FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own subjects" ON subjects;
+CREATE POLICY "Users can update own subjects"
+  ON subjects FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own subjects" ON subjects;
+CREATE POLICY "Users can delete own subjects"
+  ON subjects FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Syllabus Units ──
+DROP POLICY IF EXISTS "Users can view own syllabus units" ON syllabus_units;
+CREATE POLICY "Users can view own syllabus units"
+  ON syllabus_units FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own syllabus units" ON syllabus_units;
+CREATE POLICY "Users can create own syllabus units"
+  ON syllabus_units FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own syllabus units" ON syllabus_units;
+CREATE POLICY "Users can update own syllabus units"
+  ON syllabus_units FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own syllabus units" ON syllabus_units;
+CREATE POLICY "Users can delete own syllabus units"
+  ON syllabus_units FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Assignments ──
+DROP POLICY IF EXISTS "Users can view own assignments" ON assignments;
+CREATE POLICY "Users can view own assignments"
+  ON assignments FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own assignments" ON assignments;
+CREATE POLICY "Users can create own assignments"
+  ON assignments FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own assignments" ON assignments;
+CREATE POLICY "Users can update own assignments"
+  ON assignments FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own assignments" ON assignments;
+CREATE POLICY "Users can delete own assignments"
+  ON assignments FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Study Sessions ──
+DROP POLICY IF EXISTS "Users can view own study sessions" ON study_sessions;
+CREATE POLICY "Users can view own study sessions"
+  ON study_sessions FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own study sessions" ON study_sessions;
+CREATE POLICY "Users can create own study sessions"
+  ON study_sessions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own study sessions" ON study_sessions;
+CREATE POLICY "Users can update own study sessions"
+  ON study_sessions FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own study sessions" ON study_sessions;
+CREATE POLICY "Users can delete own study sessions"
+  ON study_sessions FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ── Daily Reviews ──
+DROP POLICY IF EXISTS "Users can view own reviews" ON daily_reviews;
+CREATE POLICY "Users can view own reviews"
+  ON daily_reviews FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can create own reviews" ON daily_reviews;
+CREATE POLICY "Users can create own reviews"
+  ON daily_reviews FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own reviews" ON daily_reviews;
+CREATE POLICY "Users can update own reviews"
+  ON daily_reviews FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can delete own reviews" ON daily_reviews;
+CREATE POLICY "Users can delete own reviews"
+  ON daily_reviews FOR DELETE
+  USING (auth.uid() = user_id);

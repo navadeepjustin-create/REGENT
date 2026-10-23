@@ -1,0 +1,17 @@
+{
+  "name": "REGENT — Mastery & Continuity",
+  "short_name": "REGENT",
+  "description": "Premium full-stack productivity SaaS for disciplined execution.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#0A0A0A",
+  "theme_color": "#C2A878",
+  "icons": [
+    {
+      "src": "/regent-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
