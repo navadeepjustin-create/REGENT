@@ -29,7 +29,11 @@ function LoginForm() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      if (error.message.includes('Failed to fetch') || error.message.includes('placeholder')) {
+        setError('Unable to connect to Supabase. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are configured in your Vercel Project Settings, then redeploy.');
+      } else {
+        setError(error.message);
+      }
     } else {
       router.push(redirectedFrom || '/app');
     }

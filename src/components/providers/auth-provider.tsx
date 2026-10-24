@@ -135,6 +135,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, fetchProfile, fetchPreferences]);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes('placeholder.supabase.co')) {
+      return {
+        error: new Error(
+          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
+        ),
+      };
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -146,6 +154,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes('placeholder.supabase.co')) {
+      return {
+        error: new Error(
+          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
+        ),
+      };
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error ? new Error(error.message) : null };
   };
@@ -159,6 +175,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!url || url.includes('placeholder.supabase.co')) {
+      return {
+        error: new Error(
+          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
+        ),
+      };
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
