@@ -31,7 +31,11 @@ export default function SignUpPage() {
     setLoading(false);
 
     if (error) {
-      if (error.message.includes('Failed to fetch') || error.message.includes('placeholder')) {
+      if (
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('Load failed') ||
+        error.message.includes('placeholder')
+      ) {
         setError('Unable to connect to Supabase. Please ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are configured in your Vercel Project Settings, then redeploy.');
       } else {
         setError(error.message);
