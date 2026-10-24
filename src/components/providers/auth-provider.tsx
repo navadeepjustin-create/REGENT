@@ -13,6 +13,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: (redirectTo?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   refreshProfile: () => Promise<void>;
@@ -134,14 +135,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase, fetchProfile, fetchPreferences]);
 
-  const signUp = async (email: string, password: string, displayName?: string) => {
+  const isConfigured = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url || url.includes('placeholder.supabase.co')) {
-      return {
-        error: new Error(
-          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
-        ),
-      };
+    const key =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    return Boolean(url && !url.includes('placeholder.supabase.co') && key && !key.includes('placeholder'));
+  };
+
+  const getMissingConfigError = () =>
+    new Error(
+      'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY) in your Vercel Project Settings and redeploy.'
+    );
+
+  const signUp = async (email: string, password: string, displayName?: string) => {
+    if (!isConfigured()) {
+      return { error: getMissingConfigError() };
     }
     const { error } = await supabase.auth.signUp({
       email,
@@ -154,15 +163,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url || url.includes('placeholder.supabase.co')) {
-      return {
-        error: new Error(
-          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
-        ),
-      };
+    if (!isConfigured()) {
+      return { error: getMissingConfigError() };
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error ? new Error(error.message) : null };
+  };
+
+  const signInWithGoogle = async (redirectTo?: string) => {
+    if (!isConfigured()) {
+      return { error: getMissingConfigError() };
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const safeNext = redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') ? redirectTo : '/app';
+    const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: callbackUrl,
+      },
+    });
     return { error: error ? new Error(error.message) : null };
   };
 
@@ -175,13 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!url || url.includes('placeholder.supabase.co')) {
-      return {
-        error: new Error(
-          'Supabase credentials are not configured in Vercel. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel Project Settings and redeploy.'
-        ),
-      };
+    if (!isConfigured()) {
+      return { error: getMissingConfigError() };
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -199,6 +214,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         signUp,
         signIn,
+        signInWithGoogle,
         signOut,
         resetPassword,
         refreshProfile,

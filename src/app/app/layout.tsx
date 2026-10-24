@@ -49,8 +49,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
+    } else if (!loading && user && profile && profile.onboarding_completed === false) {
+      router.push('/onboarding');
     }
-  }, [user, loading, router]);
+  }, [user, profile, loading, router]);
 
   if (loading) {
     return (

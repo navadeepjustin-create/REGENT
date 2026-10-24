@@ -245,6 +245,113 @@ describe('REGENT Core Logic & Rules Verification', () => {
         'Must create on_auth_user_created trigger on auth.users'
       );
     });
+
+    it('[REGRESSION] fk_tasks_project constraint uses idempotent DO block with definition validation', () => {
+      // Must not appear as a bare top-level ALTER TABLE (not idempotent)
+      const lines = migrationContent.split('\n');
+      const bareTopLevelLines = lines.filter((l) =>
+        /^ALTER TABLE tasks ADD CONSTRAINT fk_tasks_project/.test(l)
+      );
+      assert.strictEqual(
+        bareTopLevelLines.length,
+        0,
+        'fk_tasks_project must not appear as a bare column-0 ALTER TABLE (not idempotent)'
+      );
+      // Must verify constraint definition before ignoring
+      assert.ok(
+        migrationContent.includes("c.conname = 'fk_tasks_project'"),
+        'fk_tasks_project must check constraint name in pg_constraint'
+      );
+      assert.ok(
+        migrationContent.includes("f.relname = 'projects'"),
+        'fk_tasks_project must verify referenced table is projects'
+      );
+    });
+
+    it('[REGRESSION] fk_tasks_subject constraint uses idempotent DO block with definition validation', () => {
+      const lines = migrationContent.split('\n');
+      const bareTopLevelLines = lines.filter((l) =>
+        /^ALTER TABLE tasks ADD CONSTRAINT fk_tasks_subject/.test(l)
+      );
+      assert.strictEqual(
+        bareTopLevelLines.length,
+        0,
+        'fk_tasks_subject must not appear as a bare column-0 ALTER TABLE (not idempotent)'
+      );
+      assert.ok(
+        migrationContent.includes("c.conname = 'fk_tasks_subject'"),
+        'fk_tasks_subject must check constraint name in pg_constraint'
+      );
+      assert.ok(
+        migrationContent.includes("f.relname = 'subjects'"),
+        'fk_tasks_subject must verify referenced table is subjects'
+      );
+    });
+
+    it('[REGRESSION] SECURITY DEFINER handle_new_user has SET search_path = public', () => {
+      // Mutable search_path on SECURITY DEFINER functions is a Supabase security advisory.
+      assert.ok(
+        migrationContent.includes('$$ LANGUAGE plpgsql SECURITY DEFINER\n   SET search_path = public;'),
+        'handle_new_user must declare SET search_path = public to prevent search_path injection'
+      );
+    });
+
+    it('[REGRESSION] handle_new_user uses ON CONFLICT guards for idempotent inserts', () => {
+      // Without ON CONFLICT, re-firing the trigger for an existing user causes a duplicate key error.
+      assert.ok(
+        migrationContent.includes('ON CONFLICT (id) DO NOTHING'),
+        'handle_new_user profiles insert must have ON CONFLICT (id) DO NOTHING'
+      );
+      assert.ok(
+        migrationContent.includes('ON CONFLICT (user_id) DO NOTHING'),
+        'handle_new_user user_preferences insert must have ON CONFLICT (user_id) DO NOTHING'
+      );
+    });
+
+    it('[REGRESSION] forward migration 003_production_security_and_constraints.sql exists and is complete', () => {
+      const forwardPath = 'supabase/migrations/003_production_security_and_constraints.sql';
+      assert.ok(fs.existsSync(forwardPath), 'Forward migration 003 must exist for production rollout');
+      const fContent = fs.readFileSync(forwardPath, 'utf8');
+      assert.ok(fContent.includes('fk_tasks_project'), 'Forward migration must contain fk_tasks_project check');
+      assert.ok(fContent.includes('fk_tasks_subject'), 'Forward migration must contain fk_tasks_subject check');
+      assert.ok(fContent.includes('SET search_path = public'), 'Forward migration must set safe search_path');
+      assert.ok(fContent.includes('REVOKE EXECUTE ON FUNCTION handle_new_user()'), 'Forward migration must revoke direct execution privileges');
+    });
+  });
+
+  describe('5. Next.js 16 Route Protection (Proxy Convention)', () => {
+    it('[REGRESSION] proxy.ts exists at src/proxy.ts (official Next.js 16 convention)', () => {
+      // Next.js 16 documents src/proxy.ts with export function proxy() as the current convention.
+      assert.ok(
+        fs.existsSync('src/proxy.ts'),
+        'src/proxy.ts must exist as the official Next.js 16 convention'
+      );
+    });
+
+    it('[REGRESSION] no conflicting src/middleware.ts exists (prevents Turbopack build failure)', () => {
+      // Next.js 16 build throws: "Both middleware file and proxy file are detected. Please use proxy.ts only."
+      assert.strictEqual(
+        fs.existsSync('src/middleware.ts'),
+        false,
+        'src/middleware.ts must NOT exist when src/proxy.ts is used'
+      );
+    });
+
+    it('[REGRESSION] proxy.ts exports "proxy" function and config with matcher', () => {
+      const content = fs.readFileSync('src/proxy.ts', 'utf8');
+      assert.ok(
+        content.includes('export async function proxy('),
+        'proxy.ts must export "proxy" function'
+      );
+      assert.ok(
+        content.includes('export const config'),
+        'proxy.ts must export a config object'
+      );
+      assert.ok(
+        content.includes('matcher'),
+        'proxy.ts config must include matcher array'
+      );
+    });
   });
 
 });
