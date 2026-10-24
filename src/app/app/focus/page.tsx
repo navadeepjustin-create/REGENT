@@ -92,6 +92,26 @@ export default function FocusPage() {
     }
   }, []);
 
+  const handleSessionCompleted = useCallback(async () => {
+    if (activeSessionId) {
+      try {
+        const completed = await updateFocusSession(activeSessionId, {
+          status: 'completed',
+          end_time: new Date().toISOString(),
+          actual_duration: elapsedWorkSeconds,
+        });
+        setRecentSessions((prev) => [completed, ...prev]);
+        setActiveSessionId(null);
+        setElapsedWorkSeconds(0);
+      } catch (err) {
+        console.error('Failed to complete focus session:', err);
+      }
+    }
+    // Switch to break mode
+    setMode('break');
+    setTimeLeft(breakMinutes * 60);
+  }, [activeSessionId, breakMinutes, elapsedWorkSeconds]);
+
   // Timer tick
   useEffect(() => {
     if (isRunning) {
@@ -116,7 +136,7 @@ export default function FocusPage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isRunning, mode, playChime]);
+  }, [isRunning, mode, playChime, handleSessionCompleted]);
 
   const handleStart = async () => {
     if (!isRunning) {
@@ -157,26 +177,6 @@ export default function FocusPage() {
     setTimeLeft((mode === 'work' ? workMinutes : breakMinutes) * 60);
   };
 
-  const handleSessionCompleted = async () => {
-    if (activeSessionId) {
-      try {
-        const completed = await updateFocusSession(activeSessionId, {
-          status: 'completed',
-          end_time: new Date().toISOString(),
-          actual_duration: elapsedWorkSeconds,
-        });
-        setRecentSessions((prev) => [completed, ...prev]);
-        setActiveSessionId(null);
-        setElapsedWorkSeconds(0);
-      } catch (err) {
-        console.error('Failed to complete focus session:', err);
-      }
-    }
-    // Switch to break mode
-    setMode('break');
-    setTimeLeft(breakMinutes * 60);
-  };
-
   const handleFinishEarly = async () => {
     if (confirm('Finish and log this focus session now?')) {
       setIsRunning(false);
@@ -201,7 +201,7 @@ export default function FocusPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 regent-page-divider pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-regent-gold tracking-widest uppercase">
             <Timer className="w-3.5 h-3.5" />

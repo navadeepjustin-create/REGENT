@@ -26,6 +26,7 @@ import {
   Loader2,
   Filter,
   Sparkles,
+  AlertCircle,
 } from 'lucide-react';
 
 type FilterTab = 'all' | 'today' | 'upcoming' | 'backlog' | 'completed';
@@ -49,6 +50,8 @@ export default function TasksPage() {
   const [isPriorityTask, setIsPriorityTask] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -130,6 +133,8 @@ export default function TasksPage() {
     setProjectId('');
     setIsPriorityTask(activeTab === 'today');
     setTagInput('');
+    setFormError(null);
+    setFormSuccess(null);
     setIsModalOpen(true);
   };
 
@@ -142,12 +147,32 @@ export default function TasksPage() {
     setProjectId(task.project_id || '');
     setIsPriorityTask(task.is_priority_task);
     setTagInput(task.tags ? task.tags.join(', ') : '');
+    setFormError(null);
+    setFormSuccess(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !title.trim()) return;
+    if (isSubmitting) return;
+
+    setFormError(null);
+    setFormSuccess(null);
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setFormError('Task title is required.');
+      return;
+    }
+    if (trimmedTitle.length > 500) {
+      setFormError('Task title must be 500 characters or less.');
+      return;
+    }
+
+    if (!user) {
+      setFormError('You must be signed in to create a task.');
+      return;
+    }
 
     const tagsArray = tagInput
       .split(',')
@@ -158,7 +183,7 @@ export default function TasksPage() {
       setIsSubmitting(true);
       if (editingTask) {
         const updated = await updateTask(editingTask.id, {
-          title: title.trim(),
+          title: trimmedTitle,
           description: description.trim() || null,
           priority,
           due_date: dueDate || null,
@@ -167,9 +192,10 @@ export default function TasksPage() {
           tags: tagsArray,
         });
         setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+        setFormSuccess('Task updated successfully.');
       } else {
         const created = await createTask(user.id, {
-          title: title.trim(),
+          title: trimmedTitle,
           description: description.trim() || null,
           priority,
           due_date: dueDate || null,
@@ -178,10 +204,21 @@ export default function TasksPage() {
           tags: tagsArray,
         });
         setTasks((prev) => [created, ...prev]);
+        setFormSuccess('Task created successfully.');
       }
-      setIsModalOpen(false);
-    } catch (err) {
+      setTimeout(() => {
+        setIsModalOpen(false);
+        setFormSuccess(null);
+      }, 500);
+    } catch (err: unknown) {
       console.error('Failed to save task:', err);
+      let errorMsg = 'Failed to save task. Please try again.';
+      if (err instanceof Error) {
+        errorMsg = err.message;
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        errorMsg = String((err as { message: unknown }).message);
+      }
+      setFormError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -219,7 +256,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 regent-page-divider pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-regent-gold tracking-widest uppercase">
             <CheckSquare className="w-3.5 h-3.5" />
@@ -431,6 +468,20 @@ export default function TasksPage() {
         description="Configure details, priority, and schedule."
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{formError}</span>
+            </div>
+          )}
+
+          {formSuccess && (
+            <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-start gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+              <span>{formSuccess}</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">
               Title
@@ -440,7 +491,10 @@ export default function TasksPage() {
               required
               autoFocus
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (formError) setFormError(null);
+              }}
               placeholder="e.g. Prepare design specification"
               className="regent-input w-full"
             />

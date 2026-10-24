@@ -17,7 +17,12 @@ export function useRealtimeSync({
   enabled = true,
 }: RealtimeSyncOptions) {
   const onSyncRef = useRef(onSync);
-  onSyncRef.current = onSync;
+
+  useEffect(() => {
+    onSyncRef.current = onSync;
+  });
+
+  const tablesKey = tables.join(',');
 
   useEffect(() => {
     if (!enabled || !userId || tables.length === 0) return;
@@ -56,5 +61,5 @@ export function useRealtimeSync({
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleOnline);
     };
-  }, [userId, tables.join(','), enabled]);
+  }, [userId, tablesKey, enabled, tables]);
 }

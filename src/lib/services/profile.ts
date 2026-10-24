@@ -27,8 +27,10 @@ export async function updatePreferences(
   const supabase = createClient();
   const { data, error } = await supabase
     .from('user_preferences')
-    .update(updates)
-    .eq('user_id', userId)
+    .upsert(
+      { user_id: userId, ...updates },
+      { onConflict: 'user_id' }
+    )
     .select()
     .single();
 

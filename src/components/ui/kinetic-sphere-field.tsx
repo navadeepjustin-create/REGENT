@@ -5,19 +5,19 @@ import * as THREE from 'three';
 
 export function KineticSphereField() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [webGLSupported, setWebGLSupported] = useState(true);
+  const [webGLSupported] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const canvas = document.createElement('canvas');
+      return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
-
-    // Check WebGL availability
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) {
-      setWebGLSupported(false);
-      return;
-    }
+    if (!container || !webGLSupported) return;
 
     // Check reduced motion preference
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,15 +51,15 @@ export function KineticSphereField() {
     const ambientLight = new THREE.AmbientLight(0x20281f, 1.2);
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xf1ebdd, 2.0);
+    const dirLight1 = new THREE.DirectionalLight(0xf1ebdd, 1.6);
     dirLight1.position.set(12, 18, 15);
     scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0xc2a878, 1.4);
+    const dirLight2 = new THREE.DirectionalLight(0xc2a878, 1.2);
     dirLight2.position.set(-15, -10, 10);
     scene.add(dirLight2);
 
-    const goldPointLight = new THREE.PointLight(0xe0cda7, 3.5, 30);
+    const goldPointLight = new THREE.PointLight(0xe0cda7, 2.2, 28);
     goldPointLight.position.set(0, 0, 8);
     scene.add(goldPointLight);
 
@@ -175,7 +175,7 @@ export function KineticSphereField() {
 
     // Animation Loop with Visibility & Reduced-Motion Handling
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
     let isTabVisible = true;
 
     const handleVisibilityChange = () => {
@@ -254,7 +254,7 @@ export function KineticSphereField() {
       materials.forEach((m) => m.dispose());
       renderer.dispose();
     };
-  }, []);
+  }, [webGLSupported]);
 
   if (!webGLSupported) {
     return (

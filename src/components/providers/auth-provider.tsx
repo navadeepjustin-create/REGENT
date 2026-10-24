@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 import type { Profile, UserPreferences } from '@/types';
 
 interface AuthContextType {
@@ -29,26 +29,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
+  const fetchProfile = useCallback(async (userId: string, email?: string, metaName?: string) => {
+    const { data: initialData, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+
+    let data = initialData;
+
+    if (!data || error) {
+      // Auto-provision profile row if missing for authenticated user
+      const userEmail = email || '';
+      const displayName = metaName || (userEmail ? userEmail.split('@')[0] : 'User');
+      const { data: createdProfile } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: userId,
+            email: userEmail,
+            display_name: displayName,
+          },
+          { onConflict: 'id' }
+        )
+        .select()
+        .single();
+      if (createdProfile) data = createdProfile;
+    }
+
     if (data) setProfile(data as Profile);
   }, [supabase]);
 
   const fetchPreferences = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data: initialData, error } = await supabase
       .from('user_preferences')
       .select('*')
       .eq('user_id', userId)
       .single();
+
+    let data = initialData;
+
+    if (!data || error) {
+      const { data: createdPrefs } = await supabase
+        .from('user_preferences')
+        .upsert(
+          { user_id: userId },
+          { onConflict: 'user_id' }
+        )
+        .select()
+        .single();
+      if (createdPrefs) data = createdPrefs;
+    }
+
     if (data) setPreferences(data as UserPreferences);
   }, [supabase]);
 
   const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) await fetchProfile(user.id, user.email, user.user_metadata?.display_name);
   }, [user, fetchProfile]);
 
   const refreshPreferences = useCallback(async () => {
@@ -63,7 +100,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          const userMeta = session.user.user_metadata;
+          await fetchProfile(session.user.id, session.user.email, userMeta?.display_name);
           await fetchPreferences(session.user.id);
         }
       } catch (error) {
@@ -76,12 +114,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: AuthChangeEvent, session: Session | null) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          const userMeta = session.user.user_metadata;
+          await fetchProfile(session.user.id, session.user.email, userMeta?.display_name);
           await fetchPreferences(session.user.id);
         } else {
           setProfile(null);

@@ -19,8 +19,13 @@ import {
   Menu,
   X,
   ChevronLeft,
+  ChevronDown,
   Loader2,
+  Sparkles,
+  Bell,
+  Plus,
 } from 'lucide-react';
+import { AmbientAtmosphere } from '@/components/ui/ambient-atmosphere';
 
 const navItems = [
   { label: 'Today', href: '/app', icon: LayoutDashboard, module: 'dashboard' },
@@ -73,23 +78,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-regent-obsidian flex">
+    <div className="min-h-screen bg-regent-obsidian flex relative overflow-x-hidden">
+      {/* Ambient champagne-gold atmosphere with curved cinematic waves */}
+      <AmbientAtmosphere />
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col border-r border-border-subtle bg-surface-1 transition-all duration-300 ${
+        className={`fixed lg:sticky top-0 left-0 h-screen z-50 flex flex-col border-r border-[#26241E]/90 bg-[#0A0B09]/95 backdrop-blur-2xl transition-all duration-300 shadow-[4px_0_30px_rgba(0,0,0,0.8),2px_0_18px_-3px_rgba(194,168,120,0.08)] ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${collapsed ? 'w-[72px]' : 'w-[260px]'}`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-border-subtle">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-border-subtle/80 bg-surface-1/40">
           {collapsed ? (
             <RegentLogo variant="monogram" size="sm" />
           ) : (
@@ -104,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-1.5">
           {filteredNav.map((item) => {
             const isActive = item.href === '/app'
               ? pathname === '/app'
@@ -115,11 +123,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-regent-gold/10 text-regent-gold border border-regent-gold/20'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-transparent'
-                } ${collapsed ? 'justify-center' : ''}`}
+                    ? 'bg-gradient-to-r from-regent-gold/25 via-regent-gold/15 to-regent-gold/5 text-regent-gold border border-regent-gold/35 shadow-sm shadow-regent-gold/15 font-medium'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-2/60 border border-transparent'
+                } ${collapsed ? 'justify-center px-2' : ''}`}
                 title={collapsed ? item.label : undefined}
               >
                 <item.icon className="w-[18px] h-[18px] shrink-0" />
@@ -130,34 +138,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Collapse toggle (desktop) */}
-        <div className="hidden lg:block px-3 py-2 border-t border-border-subtle">
+        <div className="hidden lg:block px-3 py-2 border-t border-border-subtle/80 bg-surface-1/30">
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="regent-btn-ghost w-full flex items-center justify-center py-2"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+            <ChevronLeft className={`w-4 h-4 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
         {/* User */}
-        <div className="px-3 py-3 border-t border-border-subtle">
+        <div className="px-4 py-3.5 border-t border-border-subtle/80 bg-surface-1/40">
           <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="w-8 h-8 rounded-full bg-regent-gold/20 flex items-center justify-center text-regent-gold text-xs font-semibold shrink-0">
-              {(profile?.display_name || user.email || 'R')[0].toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-surface-2 border border-border-default/80 flex items-center justify-center text-text-primary text-xs font-semibold shrink-0 shadow-inner">
+              {(profile?.display_name || user.email || 'N')[0].toUpperCase()}
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary truncate">
-                  {profile?.display_name || 'User'}
+                <p className="text-xs font-medium text-text-primary truncate">
+                  {profile?.display_name || user?.email?.split('@')[0] || 'navadeep justin'}
                 </p>
-                <p className="text-xs text-text-muted truncate">{user.email}</p>
+                <p className="text-[11px] text-text-muted truncate">{user.email}</p>
               </div>
             )}
             {!collapsed && (
               <button
                 onClick={handleSignOut}
-                className="regent-btn-ghost p-1.5"
+                className="regent-btn-ghost p-1.5 text-text-muted hover:text-regent-ivory"
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4" />
@@ -167,10 +175,47 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 min-h-screen">
-        {/* Mobile header */}
-        <header className="lg:hidden sticky top-0 z-30 h-14 flex items-center justify-between px-4 border-b border-border-subtle bg-regent-obsidian/90 backdrop-blur-lg">
+      {/* Main Content Area */}
+      <main className="flex-1 min-h-screen relative z-10 flex flex-col">
+        {/* Desktop Top Header Bar (matches demo image top-right controls) */}
+        <header className="hidden lg:flex items-center justify-end px-8 py-4 gap-3 border-b border-border-subtle/30 bg-transparent">
+          <button
+            className="w-8 h-8 rounded-full bg-surface-2/80 border border-border-subtle/80 hover:border-regent-gold/40 flex items-center justify-center text-text-muted hover:text-regent-gold transition-colors shadow-sm"
+            title="Theme Mode"
+            aria-label="Theme Mode"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+          <button
+            className="w-8 h-8 rounded-full bg-surface-2/80 border border-border-subtle/80 hover:border-regent-gold/40 flex items-center justify-center text-text-muted hover:text-regent-gold transition-colors shadow-sm"
+            title="Notifications"
+            aria-label="Notifications"
+          >
+            <Bell className="w-3.5 h-3.5" />
+          </button>
+          <Link
+            href="/app/tasks"
+            onClick={(e) => {
+              if (pathname === '/app') {
+                e.preventDefault();
+                window.dispatchEvent(new CustomEvent('regent:open-task-modal'));
+              }
+            }}
+            className="regent-btn regent-btn-primary px-3.5 py-1.5 text-xs font-medium gap-1.5 shadow-sm shadow-regent-gold/25"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Task</span>
+          </Link>
+          <div className="flex items-center gap-1.5 pl-1 text-xs text-text-primary cursor-default">
+            <div className="w-8 h-8 rounded-full bg-surface-2 border border-border-default/80 flex items-center justify-center text-xs font-semibold shadow-inner">
+              {(profile?.display_name || user.email || 'N')[0].toUpperCase()}
+            </div>
+            <ChevronDown className="w-3 h-3 text-text-muted" />
+          </div>
+        </header>
+
+        {/* Mobile Header */}
+        <header className="lg:hidden sticky top-0 z-30 h-14 flex items-center justify-between px-4 border-b border-border-subtle/80 bg-regent-obsidian/90 backdrop-blur-xl">
           <button
             onClick={() => setSidebarOpen(true)}
             className="regent-btn-ghost p-1.5"
@@ -181,7 +226,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="w-8" />
         </header>
 
-        <div className="p-6 md:p-8 lg:p-10 max-w-7xl">
+        <div className="p-6 md:p-8 lg:p-10 max-w-7xl w-full">
           {children}
         </div>
       </main>

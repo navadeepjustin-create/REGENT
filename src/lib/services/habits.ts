@@ -133,6 +133,13 @@ export async function logHabitEntry(
   return data as HabitEntry;
 }
 
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Calculates current streak for a habit, respecting scheduled days and rest days.
  * Rest days and unscheduled days do NOT break the streak.
@@ -140,14 +147,15 @@ export async function logHabitEntry(
 export function calculateHabitStreak(
   habit: Habit,
   entries: HabitEntry[],
-  todayStr: string = new Date().toISOString().split('T')[0]
+  todayStr: string = formatLocalDate(new Date())
 ): { currentStreak: number; bestStreak: number } {
   const entriesByDate = new Map<string, number>();
   entries.forEach((e) => entriesByDate.set(e.date, Number(e.value)));
 
-  const today = new Date(todayStr + 'T00:00:00');
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const today = new Date(y, m - 1, d);
   let currentStreak = 0;
-  let cursor = new Date(today);
+  const cursor = new Date(today);
 
   // Check today first. If today is scheduled and met target, count it.
   // If not met today yet, we start checking from yesterday so today in progress doesn't break streak.
@@ -159,22 +167,22 @@ export function calculateHabitStreak(
   if (isTodayScheduled && !isTodayRestDay && todayVal >= habit.target_value) {
     currentStreak++;
     cursor.setDate(cursor.getDate() - 1);
-  } else if (!isTodayScheduled || isTodayRestDay) {
-    // If today is a rest day, start checking backwards from yesterday
-    cursor.setDate(cursor.getDate() - 1);
   } else {
-    // Today not met yet, check backwards from yesterday
+    // If today is a rest day, unscheduled, or in-progress, start checking backwards from yesterday
     cursor.setDate(cursor.getDate() - 1);
   }
 
+  const [sy, sm, sd] = habit.start_date.split('-').map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+
   // Go backwards up to 365 days
   for (let i = 0; i < 365; i++) {
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(cursor);
     const dayOfWeek = cursor.getDay();
     const isScheduled = habit.schedule_days.includes(dayOfWeek);
     const isRest = habit.rest_days.includes(dayOfWeek);
 
-    if (cursor < new Date(habit.start_date + 'T00:00:00')) {
+    if (cursor < startDate) {
       break;
     }
 

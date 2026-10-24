@@ -7,6 +7,7 @@ import { updateProfile, updatePreferences } from '@/lib/services/profile';
 import { createHabit } from '@/lib/services/habits';
 import { createTask } from '@/lib/services/tasks';
 import { RegentLogo } from '@/components/ui/regent-logo';
+import { AmbientAtmosphere } from '@/components/ui/ambient-atmosphere';
 import {
   GraduationCap,
   Code2,
@@ -156,17 +157,24 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-regent-obsidian flex flex-col items-center justify-center p-4 py-12">
-      <div className="w-full max-w-2xl space-y-8 animate-in fade-in duration-300">
+    <div className="relative min-h-screen bg-regent-obsidian flex flex-col items-center justify-center p-4 py-12 overflow-hidden">
+      <AmbientAtmosphere />
+      <div className="relative z-10 w-full max-w-2xl space-y-8 animate-in fade-in duration-300">
         {/* Logo & Headline */}
-        <div className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
+        <div className="text-center space-y-3">
+          <div className="flex justify-center mb-6">
             <RegentLogo variant="full" size="md" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-serif font-bold text-text-primary">
+          {/* Gold accent rule */}
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <div className="h-px w-12 bg-gradient-to-r from-transparent to-regent-gold/50" />
+            <span className="text-[10px] font-medium text-regent-gold tracking-[0.2em] uppercase">Setup</span>
+            <div className="h-px w-12 bg-gradient-to-l from-transparent to-regent-gold/50" />
+          </div>
+          <h1 className="font-serif text-3xl md:text-4xl font-light text-regent-ivory leading-tight tracking-tight">
             Calibrate Your Command Center
           </h1>
-          <p className="text-sm text-text-muted max-w-md mx-auto">
+          <p className="text-sm text-text-muted max-w-md mx-auto leading-relaxed">
             Select your primary objective. REGENT will tailor your modules, starter habits, and dashboard accordingly.
           </p>
         </div>

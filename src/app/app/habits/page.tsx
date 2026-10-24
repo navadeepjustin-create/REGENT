@@ -242,7 +242,7 @@ export default function HabitsPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 regent-page-divider pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-regent-gold tracking-widest uppercase">
             <Target className="w-3.5 h-3.5" />
@@ -403,12 +403,18 @@ export default function HabitsPage() {
                   </div>
 
                   {/* Visual Progress Bar */}
-                  <div className="w-full bg-surface-3 h-2 rounded-full overflow-hidden mb-4">
+                  <div className="regent-progress-track w-full h-2 mb-4">
                     <div
-                      className={`h-full transition-all duration-300 ${
-                        isCompleted ? 'bg-emerald-400' : 'bg-regent-gold'
-                      }`}
-                      style={{ width: `${percent}%` }}
+                      className="regent-progress-fill"
+                      style={{
+                        width: `${percent}%`,
+                        background: isCompleted
+                          ? 'linear-gradient(90deg, #34D399 0%, #6EE7B7 100%)'
+                          : 'linear-gradient(90deg, #C2A878 0%, #E0CDA7 100%)',
+                        boxShadow: isCompleted
+                          ? '0 0 8px 0 rgba(52, 211, 153, 0.45)'
+                          : '0 0 8px 0 rgba(194, 168, 120, 0.4)',
+                      }}
                     />
                   </div>
 

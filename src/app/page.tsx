@@ -79,7 +79,7 @@ const principles = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-regent-obsidian text-regent-ivory">
+    <div className="min-h-screen bg-regent-obsidian text-regent-ivory overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border-subtle bg-regent-obsidian/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -102,105 +102,56 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+      <section className="relative min-h-[calc(100vh-4rem)] md:min-h-screen w-full flex flex-col items-center justify-center pt-28 pb-16 sm:pt-32 sm:pb-20 md:pt-36 md:pb-24 px-6 overflow-hidden">
         {/* Three.js Cinematic Background Field */}
         <KineticSphereField />
 
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
+        {/* Soft Radial Ambient Vignette behind hero typography */}
+        <div className="absolute inset-0 bg-radial from-transparent via-regent-obsidian/40 to-regent-obsidian pointer-events-none z-[1]" />
+
+        <div className="relative z-10 w-full max-w-4xl mx-auto text-center my-auto flex flex-col items-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="w-full flex flex-col items-center"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border-default bg-surface-1/80 backdrop-blur-md mb-8">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-regent-gold/30 bg-surface-1/90 backdrop-blur-md mb-6 sm:mb-8 shadow-sm">
               <Sparkles className="w-3.5 h-3.5 text-regent-gold" />
-              <span className="text-[11px] font-mono tracking-widest uppercase text-regent-gold font-medium">
+              <span className="text-[11px] font-mono tracking-[0.2em] uppercase text-regent-gold font-medium">
                 Personal Command Center
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif font-bold tracking-tight mb-6 leading-[1.1]">
+            {/* Headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif tracking-tight mb-6 sm:mb-8 leading-[1.12] text-regent-ivory">
               A Higher Standard<br />
               <span className="text-regent-gold">for Your Time.</span>
             </h1>
 
-            <p className="text-lg text-text-secondary max-w-2xl mx-auto mb-10 leading-relaxed">
+            {/* Description */}
+            <p className="text-base sm:text-lg md:text-xl text-text-secondary max-w-2xl mx-auto mb-10 sm:mb-12 leading-relaxed">
               Bring your days, habits, goals, and projects into one carefully designed workspace.
               Make your progress visible, and turn intention into consistency.
             </p>
 
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+            {/* CTAs */}
+            <div className="flex items-center justify-center gap-4 sm:gap-5 flex-wrap">
               <Link
                 href="/signup"
-                className="regent-btn regent-btn-primary text-base px-8 py-3"
+                className="regent-btn regent-btn-primary text-base px-8 py-3.5"
               >
                 Get Started
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <a
                 href="#features"
-                className="regent-btn regent-btn-secondary text-base px-8 py-3"
+                className="regent-btn regent-btn-secondary text-base px-8 py-3.5"
               >
                 Explore REGENT
               </a>
             </div>
-          </motion.div>
-
-          {/* Hero Visual — App Preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.3, ease: 'easeOut' }}
-            className="mt-20 relative"
-          >
-            <div className="regent-card-elevated p-6 md:p-10 max-w-4xl mx-auto">
-              {/* Mock dashboard preview */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="regent-card text-left">
-                  <p className="text-label mb-2">Tasks Completed</p>
-                  <p className="text-metric text-regent-ivory">12</p>
-                  <p className="text-caption mt-1">of 15 today</p>
-                </div>
-                <div className="regent-card text-left">
-                  <p className="text-label mb-2">Habits</p>
-                  <p className="text-metric text-regent-gold">7/8</p>
-                  <p className="text-caption mt-1">87% completion</p>
-                </div>
-                <div className="regent-card text-left">
-                  <p className="text-label mb-2">Focus Time</p>
-                  <p className="text-metric text-regent-ivory">2h 45m</p>
-                  <p className="text-caption mt-1">3 sessions</p>
-                </div>
-              </div>
-              
-              {/* Mini calendar preview */}
-              <div className="regent-card">
-                <p className="text-label mb-4">October Consistency</p>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {Array.from({ length: 31 }, (_, i) => {
-                    const isSuccess = i < 20 ? (i % 4 !== 2) : false;
-                    const isFuture = i >= 22;
-                    return (
-                      <div
-                        key={i}
-                        className={`aspect-square rounded-sm flex items-center justify-center text-xs ${
-                          isFuture
-                            ? 'bg-surface-2 text-text-muted'
-                            : isSuccess
-                            ? 'bg-regent-ivory text-regent-obsidian font-medium'
-                            : 'bg-surface-2 text-text-muted'
-                        }`}
-                      >
-                        {i + 1}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-b from-regent-gold/5 via-transparent to-transparent rounded-3xl -z-10 blur-2xl" />
           </motion.div>
         </div>
       </section>

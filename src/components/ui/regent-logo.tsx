@@ -15,6 +15,17 @@ const sizeMap = {
   xl: { wordmark: 'text-4xl', monogram: 56, full: 'text-4xl' },
 };
 
+function RegentWordmark({ textSize, className = '' }: { textSize: string; className?: string }) {
+  return (
+    <span
+      className={`${textSize} font-light tracking-[0.2em] text-regent-ivory select-none ${className}`}
+      style={{ fontFamily: "'Inter', sans-serif" }}
+    >
+      R<span className="text-regent-gold">E</span>GENT
+    </span>
+  );
+}
+
 export function RegentLogo({ variant = 'full', size = 'md', className = '' }: RegentLogoProps) {
   const s = sizeMap[size];
 
@@ -43,17 +54,8 @@ export function RegentLogo({ variant = 'full', size = 'md', className = '' }: Re
     );
   }
 
-  const Wordmark = () => (
-    <span
-      className={`${s.wordmark} font-light tracking-[0.2em] text-regent-ivory select-none ${className}`}
-      style={{ fontFamily: "'Inter', sans-serif" }}
-    >
-      R<span className="text-regent-gold">E</span>GENT
-    </span>
-  );
-
   if (variant === 'wordmark') {
-    return <Wordmark />;
+    return <RegentWordmark textSize={s.wordmark} className={className} />;
   }
 
   // Full logo = monogram + wordmark
@@ -78,7 +80,7 @@ export function RegentLogo({ variant = 'full', size = 'md', className = '' }: Re
         />
         <line x1="14" y1="12" x2="14" y2="36" stroke="#C2A878" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
-      <Wordmark />
+      <RegentWordmark textSize={s.wordmark} />
     </div>
   );
 }

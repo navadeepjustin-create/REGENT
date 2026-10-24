@@ -55,11 +55,11 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-surface-1 border border-border-subtle rounded-2xl shadow-2xl z-10 overflow-hidden animate-in zoom-in-95 duration-200`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-gradient-to-b from-[#181916] to-[#0E0F0D] border border-border-default/80 border-t-white/15 rounded-2xl shadow-2xl shadow-black/80 z-10 overflow-hidden animate-in zoom-in-95 duration-200 backdrop-blur-2xl`}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle/80 bg-surface-1/40">
           <div>
-            <h3 className="text-lg font-serif font-semibold text-text-primary tracking-wide">
+            <h3 className="text-xl font-serif font-normal text-regent-ivory tracking-tight">
               {title}
             </h3>
             {description && (
@@ -68,7 +68,7 @@ export function Modal({
           </div>
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text-primary p-1.5 rounded-lg hover:bg-surface-2 transition-colors"
+            className="text-text-muted hover:text-regent-ivory p-1.5 rounded-lg hover:bg-surface-2/60 transition-colors"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />

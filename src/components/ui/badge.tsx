@@ -10,17 +10,17 @@ interface PriorityBadgeProps {
 
 export function PriorityBadge({ priority, size = 'sm' }: PriorityBadgeProps) {
   const styles: Record<Priority, string> = {
-    low: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    medium: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    high: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    urgent: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    low: 'bg-emerald-950/35 text-emerald-300/90 border-emerald-500/25',
+    medium: 'bg-sky-950/35 text-sky-300/90 border-sky-500/25',
+    high: 'bg-amber-950/35 text-amber-300/90 border-amber-500/25',
+    urgent: 'bg-rose-950/35 text-rose-300/90 border-rose-500/25',
   };
 
-  const sizeClasses = size === 'sm' ? 'text-[11px] px-2 py-0.5' : 'text-xs px-2.5 py-1';
+  const sizeClasses = size === 'sm' ? 'text-[11px] px-2.5 py-0.5' : 'text-xs px-3 py-1';
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full border capitalize ${styles[priority]} ${sizeClasses}`}
+      className={`inline-flex items-center font-medium rounded-full border tracking-wide capitalize backdrop-blur-sm ${styles[priority]} ${sizeClasses}`}
     >
       {priority}
     </span>
@@ -34,13 +34,13 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, size = 'sm' }: StatusBadgeProps) {
   const styles: Record<Status, string> = {
-    todo: 'bg-surface-3 text-text-secondary border-border-subtle',
-    in_progress: 'bg-regent-gold/10 text-regent-gold border-regent-gold/30',
-    completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    cancelled: 'bg-surface-2 text-text-muted border-border-subtle line-through',
-    planning: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-    active: 'bg-regent-gold/10 text-regent-gold border-regent-gold/30',
-    on_hold: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    todo: 'bg-surface-3/80 text-text-secondary border-border-subtle/80',
+    in_progress: 'bg-regent-gold/15 text-regent-gold border-regent-gold/30 shadow-sm shadow-regent-gold/5',
+    completed: 'bg-emerald-950/35 text-emerald-300/90 border-emerald-500/25',
+    cancelled: 'bg-surface-2/60 text-text-muted border-border-subtle line-through',
+    planning: 'bg-indigo-950/35 text-indigo-300/90 border-indigo-500/25',
+    active: 'bg-regent-gold/15 text-regent-gold border-regent-gold/30 shadow-sm shadow-regent-gold/5',
+    on_hold: 'bg-amber-950/35 text-amber-300/90 border-amber-500/25',
   };
 
   const labels: Record<Status, string> = {

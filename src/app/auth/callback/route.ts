@@ -8,10 +8,19 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/app';
 
   if (code) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      return NextResponse.redirect(`${origin}/login?error=missing_credentials`);
+    }
+
     const cookieStore = await cookies();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      url,
+      key,
       {
         cookies: {
           getAll() {

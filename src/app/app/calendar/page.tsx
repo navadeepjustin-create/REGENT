@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 import { useAuth } from '@/components/providers/auth-provider';
 import { getTasks } from '@/lib/services/tasks';
 import { getHabits, getHabitEntries } from '@/lib/services/habits';
@@ -53,22 +60,19 @@ export default function CalendarPage() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
 
-  // Compute start and end of visible grid (including padding days)
-  const firstDayOfMonth = new Date(year, month, 1);
-  const lastDayOfMonth = new Date(year, month + 1, 0);
+  const { startDate, startIso, endIso } = useMemo(() => {
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = firstDay.getDay();
+    const sDate = new Date(year, month, 1 - startDayOfWeek);
+    const eDate = new Date(year, month, 1 - startDayOfWeek + 41);
+    return {
+      startDate: sDate,
+      startIso: formatLocalDate(sDate),
+      endIso: formatLocalDate(eDate),
+    };
+  }, [year, month]);
 
-  // Calculate grid start (Sunday-based)
-  const startDayOfWeek = firstDayOfMonth.getDay();
-  const startDate = new Date(firstDayOfMonth);
-  startDate.setDate(startDate.getDate() - startDayOfWeek);
-
-  // Calculate grid end (to cover full 6 rows = 42 cells)
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 41);
-
-  const startIso = startDate.toISOString().split('T')[0];
-  const endIso = endDate.toISOString().split('T')[0];
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = formatLocalDate(new Date());
 
   const loadMonthData = useCallback(async () => {
     if (!user) return;
@@ -109,7 +113,7 @@ export default function CalendarPage() {
   const handleToday = () => {
     const now = new Date();
     setCurrentDate(now);
-    setSelectedDateStr(now.toISOString().split('T')[0]);
+    setSelectedDateStr(formatLocalDate(now));
   };
 
   // Generate 42 calendar grid cells
@@ -117,7 +121,7 @@ export default function CalendarPage() {
   const cursor = new Date(startDate);
 
   for (let i = 0; i < 42; i++) {
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(cursor);
     const isCurrentMonth = cursor.getMonth() === month;
     const isToday = dateStr === todayIso;
     const isFuture = dateStr > todayIso;
@@ -211,7 +215,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border-subtle pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 regent-page-divider pb-6">
         <div>
           <div className="flex items-center gap-2 text-xs font-medium text-regent-gold tracking-widest uppercase">
             <CalendarIcon className="w-3.5 h-3.5" />

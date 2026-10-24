@@ -48,25 +48,61 @@ export async function getTasks(userId: string, filter?: TaskFilter): Promise<Tas
 }
 
 export async function createTask(userId: string, task: Partial<Task>): Promise<Task> {
+  const trimmedTitle = task.title?.trim();
+  if (!trimmedTitle) {
+    throw new Error('Task title is required.');
+  }
+  if (trimmedTitle.length > 500) {
+    throw new Error('Task title cannot exceed 500 characters.');
+  }
+
   const supabase = createClient();
-  const { data, error } = await supabase
+  const payload = {
+    user_id: userId,
+    title: trimmedTitle,
+    description: task.description?.trim() || null,
+    status: task.status || 'todo',
+    priority: task.priority || 'medium',
+    start_date: task.start_date || null,
+    due_date: task.due_date || null,
+    project_id: task.project_id || null,
+    subject_id: task.subject_id || null,
+    category: task.category || null,
+    tags: Array.isArray(task.tags) ? task.tags : [],
+    is_priority_task: Boolean(task.is_priority_task),
+  };
+
+  let { data, error } = await supabase
     .from('tasks')
-    .insert({
-      user_id: userId,
-      title: task.title,
-      description: task.description || null,
-      status: task.status || 'todo',
-      priority: task.priority || 'medium',
-      start_date: task.start_date || null,
-      due_date: task.due_date || null,
-      project_id: task.project_id || null,
-      subject_id: task.subject_id || null,
-      category: task.category || null,
-      tags: task.tags || [],
-      is_priority_task: task.is_priority_task || false,
-    })
+    .insert(payload)
     .select()
     .single();
+
+  // If foreign key constraint on profiles table fails (code 23503), ensure profile exists and retry
+  if (error && (error.code === '23503' || error.message?.includes('profiles'))) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            email: user.email || '',
+            display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+          },
+          { onConflict: 'id' }
+        );
+
+      const retry = await supabase
+        .from('tasks')
+        .insert(payload)
+        .select()
+        .single();
+
+      data = retry.data;
+      error = retry.error;
+    }
+  }
 
   if (error) {
     console.error('Error creating task:', error);

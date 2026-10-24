@@ -5,11 +5,19 @@ import fs from 'node:fs';
 /**
  * Pure streak calculation test reproducing the production logic in src/lib/services/habits.ts
  */
+function formatLocalDate(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function calculateHabitStreak(habit, entries, todayStr) {
   const entriesByDate = new Map();
   entries.forEach((e) => entriesByDate.set(e.date, Number(e.value)));
 
-  const today = new Date(todayStr + 'T00:00:00');
+  const [y, m, d] = todayStr.split('-').map(Number);
+  const today = new Date(y, m - 1, d);
   let currentStreak = 0;
   let cursor = new Date(today);
 
@@ -21,19 +29,20 @@ function calculateHabitStreak(habit, entries, todayStr) {
   if (isTodayScheduled && !isTodayRestDay && todayVal >= habit.target_value) {
     currentStreak++;
     cursor.setDate(cursor.getDate() - 1);
-  } else if (!isTodayScheduled || isTodayRestDay) {
-    cursor.setDate(cursor.getDate() - 1);
   } else {
     cursor.setDate(cursor.getDate() - 1);
   }
 
+  const [sy, sm, sd] = habit.start_date.split('-').map(Number);
+  const startDate = new Date(sy, sm - 1, sd);
+
   for (let i = 0; i < 365; i++) {
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(cursor);
     const dayOfWeek = cursor.getDay();
     const isScheduled = habit.schedule_days.includes(dayOfWeek);
     const isRest = habit.rest_days.includes(dayOfWeek);
 
-    if (cursor < new Date(habit.start_date + 'T00:00:00')) {
+    if (cursor < startDate) {
       break;
     }
 
