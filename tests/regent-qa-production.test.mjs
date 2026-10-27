@@ -134,7 +134,7 @@ describe('REGENT Production QA & Security Verification', () => {
       );
     });
 
-    it('Login page renders Continue with Google button', () => {
+    it('Login page renders Continue with Google button as sole auth method', () => {
       const content = fs.readFileSync('src/app/login/page.tsx', 'utf8');
       assert.ok(
         content.includes('Continue with Google'),
@@ -144,9 +144,17 @@ describe('REGENT Production QA & Security Verification', () => {
         content.includes('handleGoogleLogin'),
         'Login page must bind Google button to handleGoogleLogin'
       );
+      assert.ok(
+        !content.includes('type="password"'),
+        'Login page must not contain password input fields'
+      );
+      assert.ok(
+        !content.includes('signInWithPassword'),
+        'Login page must not use email/password sign-in'
+      );
     });
 
-    it('Signup page renders Continue with Google button', () => {
+    it('Signup page renders Continue with Google button as sole auth method', () => {
       const content = fs.readFileSync('src/app/signup/page.tsx', 'utf8');
       assert.ok(
         content.includes('Continue with Google'),
@@ -155,6 +163,34 @@ describe('REGENT Production QA & Security Verification', () => {
       assert.ok(
         content.includes('handleGoogleSignup'),
         'Signup page must bind Google button to handleGoogleSignup'
+      );
+      assert.ok(
+        !content.includes('type="password"'),
+        'Signup page must not contain password input fields'
+      );
+      assert.ok(
+        !content.includes('signUpWithEmail'),
+        'Signup page must not use email registration form'
+      );
+    });
+
+    it('OAuth callback route handles code exchange and user provisioning', () => {
+      const content = fs.readFileSync('src/app/auth/callback/route.ts', 'utf8');
+      assert.ok(
+        content.includes('exchangeCodeForSession'),
+        'Callback route must exchange code for session'
+      );
+      assert.ok(
+        content.includes("from('profiles')"),
+        'Callback route must check or provision profiles table'
+      );
+      assert.ok(
+        content.includes("from('user_preferences')"),
+        'Callback route must check or provision user_preferences table'
+      );
+      assert.ok(
+        content.includes('onboarding_completed'),
+        'Callback route must check onboarding completion status'
       );
     });
   });

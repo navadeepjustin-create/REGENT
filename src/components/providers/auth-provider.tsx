@@ -30,43 +30,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  const fetchProfile = useCallback(async (userId: string, email?: string, metaName?: string) => {
-    const { data: initialData, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    let data = initialData;
-
-    if (!data || error) {
-      // Auto-provision profile row if missing for authenticated user
-      const userEmail = email || '';
-      const displayName = metaName || (userEmail ? userEmail.split('@')[0] : 'User');
-      const { data: createdProfile } = await supabase
+  const fetchProfile = useCallback(
+    async (userId: string, email?: string, metaName?: string, avatarUrl?: string | null) => {
+      const { data: initialData, error } = await supabase
         .from('profiles')
-        .upsert(
-          {
-            id: userId,
-            email: userEmail,
-            display_name: displayName,
-          },
-          { onConflict: 'id' }
-        )
-        .select()
-        .single();
-      if (createdProfile) data = createdProfile;
-    }
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (data) setProfile(data as Profile);
-  }, [supabase]);
+      let data = initialData;
+
+      if (!data || error) {
+        // Auto-provision profile row if missing for authenticated user
+        const userEmail = email || '';
+        const displayName = metaName || (userEmail ? userEmail.split('@')[0] : 'Member');
+        const { data: createdProfile } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: userId,
+              email: userEmail,
+              display_name: displayName,
+              avatar_url: avatarUrl || null,
+            },
+            { onConflict: 'id' }
+          )
+          .select()
+          .single();
+        if (createdProfile) data = createdProfile;
+      } else if (avatarUrl && !data.avatar_url) {
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: avatarUrl })
+          .eq('id', userId);
+      }
+
+      if (data) setProfile(data as Profile);
+    },
+    [supabase]
+  );
 
   const fetchPreferences = useCallback(async (userId: string) => {
     const { data: initialData, error } = await supabase
       .from('user_preferences')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     let data = initialData;
 
@@ -86,7 +95,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id, user.email, user.user_metadata?.display_name);
+    if (user) {
+      const userMeta = user.user_metadata;
+      const displayName =
+        userMeta?.full_name ||
+        userMeta?.name ||
+        userMeta?.display_name ||
+        user.email?.split('@')[0] ||
+        'Member';
+      const avatarUrl = userMeta?.avatar_url || userMeta?.picture || null;
+      await fetchProfile(user.id, user.email, displayName, avatarUrl);
+    }
   }, [user, fetchProfile]);
 
   const refreshPreferences = useCallback(async () => {
@@ -102,7 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           const userMeta = session.user.user_metadata;
-          await fetchProfile(session.user.id, session.user.email, userMeta?.display_name);
+          const displayName =
+            userMeta?.full_name ||
+            userMeta?.name ||
+            userMeta?.display_name ||
+            session.user.email?.split('@')[0] ||
+            'Member';
+          const avatarUrl = userMeta?.avatar_url || userMeta?.picture || null;
+          await fetchProfile(session.user.id, session.user.email, displayName, avatarUrl);
           await fetchPreferences(session.user.id);
         }
       } catch (error) {
@@ -121,7 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           const userMeta = session.user.user_metadata;
-          await fetchProfile(session.user.id, session.user.email, userMeta?.display_name);
+          const displayName =
+            userMeta?.full_name ||
+            userMeta?.name ||
+            userMeta?.display_name ||
+            session.user.email?.split('@')[0] ||
+            'Member';
+          const avatarUrl = userMeta?.avatar_url || userMeta?.picture || null;
+          await fetchProfile(session.user.id, session.user.email, displayName, avatarUrl);
           await fetchPreferences(session.user.id);
         } else {
           setProfile(null);
@@ -181,6 +214,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: callbackUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
       },
     });
     return { error: error ? new Error(error.message) : null };

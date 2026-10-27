@@ -42,6 +42,65 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const userMeta = user.user_metadata;
+        const displayName =
+          userMeta?.full_name ||
+          userMeta?.name ||
+          userMeta?.display_name ||
+          user.email?.split('@')[0] ||
+          'Member';
+        const avatarUrl = userMeta?.avatar_url || userMeta?.picture || null;
+
+        // Check if profile exists
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          // Provision profile for new Google user
+          await supabase.from('profiles').upsert(
+            {
+              id: user.id,
+              email: user.email || '',
+              display_name: displayName,
+              avatar_url: avatarUrl,
+              onboarding_completed: false,
+            },
+            { onConflict: 'id' }
+          );
+
+          await supabase.from('user_preferences').upsert(
+            { user_id: user.id },
+            { onConflict: 'user_id' }
+          );
+
+          // Route new users to onboarding if destination was default /app
+          const destination = safeNext === '/app' ? '/onboarding' : safeNext;
+          return NextResponse.redirect(`${origin}${destination}`);
+        } else {
+          // Sync avatar if missing
+          if (avatarUrl) {
+            await supabase
+              .from('profiles')
+              .update({ avatar_url: avatarUrl })
+              .eq('id', user.id);
+          }
+
+          if (profile.onboarding_completed === false && safeNext === '/app') {
+            return NextResponse.redirect(`${origin}/onboarding`);
+          }
+
+          return NextResponse.redirect(`${origin}${safeNext}`);
+        }
+      }
+
       return NextResponse.redirect(`${origin}${safeNext}`);
     }
   }
