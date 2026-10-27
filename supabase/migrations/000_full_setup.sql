@@ -315,14 +315,23 @@ $$ LANGUAGE plpgsql
    SET search_path = public;
 
 -- Apply triggers
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_user_preferences_updated_at ON user_preferences;
 CREATE TRIGGER update_user_preferences_updated_at BEFORE UPDATE ON user_preferences FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_tasks_updated_at ON tasks;
 CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_habits_updated_at ON habits;
 CREATE TRIGGER update_habits_updated_at BEFORE UPDATE ON habits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_habit_entries_updated_at ON habit_entries;
 CREATE TRIGGER update_habit_entries_updated_at BEFORE UPDATE ON habit_entries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_subjects_updated_at ON subjects;
 CREATE TRIGGER update_subjects_updated_at BEFORE UPDATE ON subjects FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_assignments_updated_at ON assignments;
 CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_daily_reviews_updated_at ON daily_reviews;
 CREATE TRIGGER update_daily_reviews_updated_at BEFORE UPDATE ON daily_reviews FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ── Auto-create profile on signup ──
