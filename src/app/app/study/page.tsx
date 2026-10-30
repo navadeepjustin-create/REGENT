@@ -18,16 +18,14 @@ import {
   logStudySession,
 } from '@/lib/services/study';
 import { Modal } from '@/components/ui/modal';
-import { PriorityBadge, StatusBadge } from '@/components/ui/badge';
+import { PriorityBadge } from '@/components/ui/badge';
 import type { Subject, SyllabusUnit, Assignment, StudySession, TaskPriority, TaskStatus } from '@/types';
 import {
-  BookOpen,
   Plus,
   Calendar,
   CheckCircle2,
   Circle,
   Trash2,
-  Timer,
   GraduationCap,
   Sparkles,
   Loader2,
@@ -598,6 +596,26 @@ export default function StudyPage() {
                 placeholder="Fall 2026"
                 className="regent-input w-full"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Subject Color Accent
+            </label>
+            <div className="flex items-center gap-3">
+              {['#C2A878', '#4CAF82', '#5B9BD5', '#E8A848', '#B388FF'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSubjectColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${
+                    subjectColor === c ? 'border-regent-ivory scale-110 shadow-sm' : 'border-transparent opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
             </div>
           </div>
 

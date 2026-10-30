@@ -1,18 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 import { useAuth } from '@/components/providers/auth-provider';
 import { getTasks } from '@/lib/services/tasks';
 import { getHabits, getHabitEntries } from '@/lib/services/habits';
 import { getFocusSessions } from '@/lib/services/focus';
 import { getReviewsRange } from '@/lib/services/reviews';
+import { formatLocalDate } from '@/lib/utils';
 import type { Task, Habit, HabitEntry, FocusSession, DailyReview } from '@/types';
 import {
   ChevronLeft,
@@ -47,7 +41,7 @@ export default function CalendarPage() {
   const { user, preferences } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState(
-    new Date().toISOString().split('T')[0]
+    formatLocalDate(new Date())
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);

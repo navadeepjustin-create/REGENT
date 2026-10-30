@@ -13,6 +13,7 @@ import { getProjects } from '@/lib/services/projects';
 import { Modal } from '@/components/ui/modal';
 import { PriorityBadge } from '@/components/ui/badge';
 import { useRealtimeSync } from '@/lib/hooks/use-realtime-sync';
+import { formatLocalDate } from '@/lib/utils';
 import type { Task, TaskPriority, TaskStatus, Project } from '@/types';
 import {
   CheckSquare,
@@ -53,7 +54,7 @@ export default function TasksPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate(new Date());
 
   const loadData = useCallback(async () => {
     if (!user) return;

@@ -7,6 +7,7 @@ import { getHabits, getHabitEntries } from '@/lib/services/habits';
 import { getFocusSessions } from '@/lib/services/focus';
 import { getStudySessions } from '@/lib/services/study';
 import { StatCard } from '@/components/ui/stat-card';
+import { formatLocalDate } from '@/lib/utils';
 import type { Task, Habit, HabitEntry, FocusSession, StudySession } from '@/types';
 import {
   BarChart3,
@@ -49,8 +50,8 @@ export default function InsightsPage() {
       setLoading(true);
       const daysAgo = new Date();
       daysAgo.setDate(daysAgo.getDate() - timeframe);
-      const startIso = daysAgo.toISOString().split('T')[0];
-      const todayIso = new Date().toISOString().split('T')[0];
+      const startIso = formatLocalDate(daysAgo);
+      const todayIso = formatLocalDate(new Date());
 
       const [fTasks, fHabits, fEntries, fFocus, fStudy] = await Promise.all([
         getTasks(user.id),
@@ -83,7 +84,7 @@ export default function InsightsPage() {
   for (let i = timeframe - 1; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(d);
     const dayLabel = new Intl.DateTimeFormat('en-US', {
       weekday: 'short',
       day: 'numeric',

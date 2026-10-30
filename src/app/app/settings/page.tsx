@@ -51,9 +51,10 @@ export default function SettingsPage() {
 
   // Export state
   const [isExporting, setIsExporting] = useState(false);
+  const isInitializedRef = React.useRef(false);
 
   useEffect(() => {
-    if (profile) {
+    if (profile && !isInitializedRef.current) {
       setDisplayName(profile.display_name || '');
       setWorkspaceType(profile.workspace_type || 'general');
       setTimezone(profile.timezone || 'UTC');
@@ -61,13 +62,14 @@ export default function SettingsPage() {
   }, [profile]);
 
   useEffect(() => {
-    if (preferences) {
+    if (preferences && !isInitializedRef.current) {
       setEnabledModules(preferences.enabled_modules || ['tasks', 'habits', 'calendar', 'focus', 'insights']);
       if (preferences.daily_success_rule) {
         setSuccessRuleType(preferences.daily_success_rule.type || 'habits_count');
         setMinHabits(preferences.daily_success_rule.min_habits || 3);
         setMinFocusMinutes(preferences.daily_success_rule.min_focus_minutes || 50);
       }
+      isInitializedRef.current = true;
     }
   }, [preferences]);
 
@@ -250,14 +252,28 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1">
-                Timezone
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Timezone
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                      if (detected) setTimezone(detected);
+                    } catch {}
+                  }}
+                  className="text-[11px] text-regent-gold hover:text-regent-gold-light transition-colors"
+                >
+                  Auto-detect
+                </button>
+              </div>
               <input
                 type="text"
                 value={timezone}
                 onChange={(e) => setTimezone(e.target.value)}
-                placeholder="UTC, America/New_York, Asia/Kolkata"
+                placeholder="e.g. UTC, Asia/Kolkata, America/New_York"
                 className="regent-input w-full text-xs"
               />
             </div>
@@ -278,11 +294,19 @@ export default function SettingsPage() {
 
       {/* ── Section 2: Enabled Modules ── */}
       <div className="regent-card p-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Sliders className="w-4 h-4 text-regent-gold" />
-          <h2 className="text-base font-serif font-semibold text-text-primary">
-            Workspace Modules
-          </h2>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Sliders className="w-4 h-4 text-regent-gold" />
+            <h2 className="text-base font-serif font-semibold text-text-primary">
+              Workspace Modules
+            </h2>
+          </div>
+          {isSavingModules && (
+            <div className="flex items-center gap-1.5 text-xs text-regent-gold font-mono">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Saving...</span>
+            </div>
+          )}
         </div>
         <p className="text-xs text-text-muted mb-6">
           Toggle features on or off. Disabled modules are hidden from navigation to eliminate distraction.

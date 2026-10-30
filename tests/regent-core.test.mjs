@@ -60,7 +60,35 @@ function calculateHabitStreak(habit, entries, todayStr) {
     }
   }
 
-  return { currentStreak, bestStreak: Math.max(currentStreak, 0) };
+  // Historical Best Streak calculation (from habits.ts)
+  let bestStreak = currentStreak;
+  let runningStreak = 0;
+  const forwardCursor = new Date(startDate);
+
+  while (forwardCursor <= today) {
+    const fDateStr = formatLocalDate(forwardCursor);
+    const fDay = forwardCursor.getDay();
+    const isSched = habit.schedule_days.includes(fDay);
+    const isRest = habit.rest_days.includes(fDay);
+
+    if (isRest || !isSched) {
+      forwardCursor.setDate(forwardCursor.getDate() + 1);
+      continue;
+    }
+
+    const val = entriesByDate.get(fDateStr) || 0;
+    if (val >= habit.target_value) {
+      runningStreak++;
+      if (runningStreak > bestStreak) {
+        bestStreak = runningStreak;
+      }
+    } else {
+      runningStreak = 0;
+    }
+    forwardCursor.setDate(forwardCursor.getDate() + 1);
+  }
+
+  return { currentStreak, bestStreak: Math.max(currentStreak, bestStreak) };
 }
 
 describe('REGENT Core Logic & Rules Verification', () => {
@@ -120,6 +148,23 @@ describe('REGENT Core Logic & Rules Verification', () => {
       ];
       const result = calculateHabitStreak(habit, entries, '2026-10-16');
       assert.strictEqual(result.currentStreak, 1);
+    });
+    it('computes historical best streak even if current streak is lower after a missed day', () => {
+      // Historical streak of 4 days: Oct 5, 6, 7, 8
+      // Missed Oct 9
+      // Current streak of 2 days: Oct 12, 13
+      const entries = [
+        { date: '2026-10-05', value: 50 },
+        { date: '2026-10-06', value: 50 },
+        { date: '2026-10-07', value: 50 },
+        { date: '2026-10-08', value: 50 },
+        // Oct 09 missed
+        { date: '2026-10-12', value: 50 },
+        { date: '2026-10-13', value: 50 },
+      ];
+      const result = calculateHabitStreak(habit, entries, '2026-10-13');
+      assert.strictEqual(result.currentStreak, 2, 'Current streak should be 2');
+      assert.strictEqual(result.bestStreak, 4, 'Historical best streak should be 4');
     });
   });
 
@@ -247,4 +292,78 @@ describe('REGENT Core Logic & Rules Verification', () => {
     });
   });
 
+  describe('5. Security: Open Redirect Sanitization (sanitizeRedirectPath)', () => {
+    function sanitizeRedirectPath(path, fallback = '/app') {
+      if (!path || typeof path !== 'string') return fallback;
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\')) {
+        return fallback;
+      }
+      return path;
+    }
+
+    it('allows valid relative internal paths', () => {
+      assert.strictEqual(sanitizeRedirectPath('/app'), '/app');
+      assert.strictEqual(sanitizeRedirectPath('/app/tasks'), '/app/tasks');
+      assert.strictEqual(sanitizeRedirectPath('/reset-password?code=123'), '/reset-password?code=123');
+    });
+
+    it('neutralizes protocol-relative open redirect attacks (//evil.com)', () => {
+      assert.strictEqual(sanitizeRedirectPath('//attacker.com'), '/app');
+      assert.strictEqual(sanitizeRedirectPath('//evil.org/phish'), '/app');
+    });
+
+    it('neutralizes absolute URL redirects (https://evil.com)', () => {
+      assert.strictEqual(sanitizeRedirectPath('https://evil.com'), '/app');
+      assert.strictEqual(sanitizeRedirectPath('http://phishing.site'), '/app');
+    });
+
+    it('neutralizes javascript: and data: schemes', () => {
+      assert.strictEqual(sanitizeRedirectPath('javascript:alert(1)'), '/app');
+      assert.strictEqual(sanitizeRedirectPath('data:text/html,<script>alert(1)</script>'), '/app');
+    });
+
+    it('neutralizes backslash Windows path traversal attacks', () => {
+      assert.strictEqual(sanitizeRedirectPath('/\\attacker.com'), '/app');
+    });
+
+    it('falls back safely for null, undefined, and empty string', () => {
+      assert.strictEqual(sanitizeRedirectPath(null), '/app');
+      assert.strictEqual(sanitizeRedirectPath(undefined), '/app');
+      assert.strictEqual(sanitizeRedirectPath(''), '/app');
+    });
+  });
+
+  describe('6. Migration 003: Performance Indexes & Function Hardening', () => {
+    const migration003 = fs.readFileSync('supabase/migrations/003_security_and_performance.sql', 'utf8');
+
+    it('creates foreign key and query performance indexes', () => {
+      const requiredIndexes = [
+        'idx_tasks_subject_id',
+        'idx_focus_sessions_task_id',
+        'idx_study_sessions_unit_id',
+        'idx_study_sessions_task_id',
+        'idx_projects_user_status',
+        'idx_habits_user_sort',
+      ];
+      requiredIndexes.forEach((idx) => {
+        assert.ok(migration003.includes(idx), `Migration 003 must contain index: ${idx}`);
+      });
+    });
+
+    it('hardens handle_new_user with SECURITY DEFINER and explicit search_path', () => {
+      assert.ok(
+        migration003.includes('SECURITY DEFINER SET search_path = public'),
+        'Trigger function must explicitly set safe search_path = public'
+      );
+    });
+
+    it('revokes public execute permissions on handle_new_user', () => {
+      assert.ok(
+        migration003.includes('REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC'),
+        'Must revoke execute from PUBLIC'
+      );
+    });
+  });
+
 });
+

@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
 import { updateProfile, updatePreferences } from '@/lib/services/profile';
-import { createHabit } from '@/lib/services/habits';
-import { createTask } from '@/lib/services/tasks';
+import { createHabit, getHabits } from '@/lib/services/habits';
+import { createTask, getTasks } from '@/lib/services/tasks';
+import { createSubject, getSubjects } from '@/lib/services/study';
+import { createProject, getProjects } from '@/lib/services/projects';
+import { formatLocalDate } from '@/lib/utils';
 import { RegentLogo } from '@/components/ui/regent-logo';
 import { AmbientAtmosphere } from '@/components/ui/ambient-atmosphere';
 import {
@@ -84,10 +87,10 @@ const PERSONAS = [
 ];
 
 export default function OnboardingPage() {
-  const { user, refreshProfile, refreshPreferences } = useAuth();
+  const { user, profile, refreshProfile, refreshPreferences } = useAuth();
   const router = useRouter();
   const [selectedPersonaId, setSelectedPersonaId] = useState('general');
-  const [displayName, setDisplayName] = useState('');
+  const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [isFinishing, setIsFinishing] = useState(false);
 
   const selectedPersona = PERSONAS.find((p) => p.id === selectedPersonaId)!;
@@ -96,6 +99,7 @@ export default function OnboardingPage() {
     if (!user) return;
     try {
       setIsFinishing(true);
+      const todayStr = formatLocalDate(new Date());
 
       // 1. Update Profile
       await updateProfile(user.id, {
@@ -113,34 +117,74 @@ export default function OnboardingPage() {
         },
       });
 
-      // 3. Provision starter habits
-      for (const h of selectedPersona.starterHabits) {
-        try {
-          await createHabit(user.id, {
-            name: h.name,
-            target_value: h.target,
-            unit: h.unit,
-            category: h.category,
-            schedule_type: 'daily',
-            schedule_days: [0, 1, 2, 3, 4, 5, 6],
-            rest_days: [],
-            contributes_to_daily_success: true,
-          });
-        } catch {
-          // Ignore if table not yet migrated
+      // 3. Provision starter habits (deduplicated)
+      try {
+        const existingHabits = await getHabits(user.id, true);
+        const existingHabitNames = new Set(existingHabits.map((h) => h.name.toLowerCase().trim()));
+
+        for (const h of selectedPersona.starterHabits) {
+          if (!existingHabitNames.has(h.name.toLowerCase().trim())) {
+            await createHabit(user.id, {
+              name: h.name,
+              target_value: h.target,
+              unit: h.unit,
+              category: h.category,
+              schedule_type: 'daily',
+              schedule_days: [0, 1, 2, 3, 4, 5, 6],
+              rest_days: [],
+              contributes_to_daily_success: true,
+            });
+          }
         }
+      } catch (habitErr) {
+        console.warn('Onboarding habit provisioning note:', habitErr);
       }
 
-      // 4. Provision starter task
+      // 4. Provision starter task (deduplicated)
       try {
-        await createTask(user.id, {
-          title: selectedPersona.starterTask,
-          priority: 'high',
-          is_priority_task: true,
-          due_date: new Date().toISOString().split('T')[0],
-        });
-      } catch {
-        // Ignore
+        const existingTasks = await getTasks(user.id);
+        const existingTaskTitles = new Set(existingTasks.map((t) => t.title.toLowerCase().trim()));
+
+        if (!existingTaskTitles.has(selectedPersona.starterTask.toLowerCase().trim())) {
+          await createTask(user.id, {
+            title: selectedPersona.starterTask,
+            priority: 'high',
+            is_priority_task: true,
+            due_date: todayStr,
+          });
+        }
+      } catch (taskErr) {
+        console.warn('Onboarding task provisioning note:', taskErr);
+      }
+
+      // 5. Persona-specific starter assets (academic subject or project)
+      if (selectedPersona.id === 'student') {
+        try {
+          const existingSubjects = await getSubjects(user.id);
+          if (existingSubjects.length === 0) {
+            await createSubject(user.id, {
+              name: 'Core Curriculum & Coursework',
+              code: 'COURSE 101',
+              color: '#C2A878',
+            });
+          }
+        } catch {
+          // Non-blocking
+        }
+      } else if (selectedPersona.id === 'developer' || selectedPersona.id === 'professional') {
+        try {
+          const existingProjects = await getProjects(user.id);
+          if (existingProjects.length === 0) {
+            await createProject(user.id, {
+              name: 'Q4 High-Leverage Milestones',
+              category: selectedPersona.id === 'developer' ? 'Engineering' : 'Strategy',
+              priority: 'high',
+              status: 'active',
+            });
+          }
+        } catch {
+          // Non-blocking
+        }
       }
 
       await refreshProfile();

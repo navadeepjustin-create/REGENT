@@ -133,16 +133,11 @@ export async function logHabitEntry(
   return data as HabitEntry;
 }
 
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+import { formatLocalDate } from '@/lib/utils';
 
 /**
- * Calculates current streak for a habit, respecting scheduled days and rest days.
- * Rest days and unscheduled days do NOT break the streak.
+ * Calculates current streak and true historical best streak for a habit,
+ * respecting scheduled days and rest days. Rest days and unscheduled days do NOT break streaks.
  */
 export function calculateHabitStreak(
   habit: Habit,
@@ -158,7 +153,7 @@ export function calculateHabitStreak(
   const cursor = new Date(today);
 
   // Check today first. If today is scheduled and met target, count it.
-  // If not met today yet, we start checking from yesterday so today in progress doesn't break streak.
+  // If not met today yet, start checking backwards from yesterday so today in progress doesn't break streak.
   const todayDayOfWeek = cursor.getDay();
   const isTodayScheduled = habit.schedule_days.includes(todayDayOfWeek);
   const isTodayRestDay = habit.rest_days.includes(todayDayOfWeek);
@@ -168,14 +163,14 @@ export function calculateHabitStreak(
     currentStreak++;
     cursor.setDate(cursor.getDate() - 1);
   } else {
-    // If today is a rest day, unscheduled, or in-progress, start checking backwards from yesterday
+    // If today is a rest day, unscheduled, or in-progress, check backwards from yesterday
     cursor.setDate(cursor.getDate() - 1);
   }
 
   const [sy, sm, sd] = habit.start_date.split('-').map(Number);
   const startDate = new Date(sy, sm - 1, sd);
 
-  // Go backwards up to 365 days
+  // 1. Calculate Current Streak going backwards up to 365 days
   for (let i = 0; i < 365; i++) {
     const dateStr = formatLocalDate(cursor);
     const dayOfWeek = cursor.getDay();
@@ -197,10 +192,38 @@ export function calculateHabitStreak(
       currentStreak++;
       cursor.setDate(cursor.getDate() - 1);
     } else {
-      // Missed scheduled day: streak ends
+      // Missed scheduled day: streak terminates
       break;
     }
   }
 
-  return { currentStreak, bestStreak: Math.max(currentStreak, 0) };
+  // 2. Calculate Historical Best Streak going forward from start_date to today
+  let bestStreak = currentStreak;
+  let runningStreak = 0;
+  const forwardCursor = new Date(startDate);
+
+  while (forwardCursor <= today) {
+    const dateStr = formatLocalDate(forwardCursor);
+    const dayOfWeek = forwardCursor.getDay();
+    const isScheduled = habit.schedule_days.includes(dayOfWeek);
+    const isRest = habit.rest_days.includes(dayOfWeek);
+
+    if (isScheduled && !isRest) {
+      const val = entriesByDate.get(dateStr) || 0;
+      if (val >= habit.target_value) {
+        runningStreak++;
+        if (runningStreak > bestStreak) {
+          bestStreak = runningStreak;
+        }
+      } else {
+        // Only reset if date is strictly in the past (today might be pending)
+        if (dateStr < todayStr) {
+          runningStreak = 0;
+        }
+      }
+    }
+    forwardCursor.setDate(forwardCursor.getDate() + 1);
+  }
+
+  return { currentStreak, bestStreak: Math.max(bestStreak, currentStreak) };
 }

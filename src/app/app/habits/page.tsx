@@ -13,6 +13,7 @@ import {
 } from '@/lib/services/habits';
 import { Modal } from '@/components/ui/modal';
 import { useRealtimeSync } from '@/lib/hooks/use-realtime-sync';
+import { formatLocalDate } from '@/lib/utils';
 import type { Habit, HabitCategory, HabitEntry, HabitSchedule } from '@/types';
 import {
   Target,
@@ -78,12 +79,12 @@ export default function HabitsPage() {
   // Active menu dropdown id
   const [menuHabitId, setMenuHabitId] = useState<string | null>(null);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = formatLocalDate(new Date());
 
-  // Fetch 30 days of entries for streak calculation
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const startIso = thirtyDaysAgo.toISOString().split('T')[0];
+  // Fetch 180 days of entries for accurate historical streak calculation
+  const lookbackDate = new Date();
+  lookbackDate.setDate(lookbackDate.getDate() - 180);
+  const startIso = formatLocalDate(lookbackDate);
 
   const loadHabitsData = useCallback(async () => {
     if (!user) return;
